@@ -264,6 +264,7 @@ async function startMedia() {
       }
     }
   }
+  stream = await avoidLoopbackMic(stream);
   S.localStream = stream;
   S.hasCam = !!stream?.getVideoTracks().length;
   S.hasMic = !!stream?.getAudioTracks().length;
@@ -274,6 +275,35 @@ async function startMedia() {
     $("meVideo").play().catch(() => {});
   }
   watchMic(stream?.getAudioTracks()[0]);
+}
+
+// Windows sometimes makes "Stereo Mix" the default microphone. It records what the
+// computer plays, not the player's voice, so the other side hears only their own
+// voice echoed back. Switch to a real microphone when there is one.
+const LOOPBACK_MIC = /stereo mix|what u hear|wave out mix|loopback/i;
+
+async function avoidLoopbackMic(stream) {
+  const a = stream?.getAudioTracks()[0];
+  if (!a || !LOOPBACK_MIC.test(a.label)) return stream;
+  const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+  const real = devices.find((d) =>
+    d.kind === "audioinput" && d.deviceId !== "default" && d.deviceId !== "communications" && !LOOPBACK_MIC.test(d.label));
+  if (!real) {
+    toast("Your only microphone is Stereo Mix, which can't hear your voice. Connect or turn on a microphone, then reload.", 9000);
+    return stream;
+  }
+  try {
+    const fresh = (await navigator.mediaDevices.getUserMedia({
+      audio: { ...MIC_CONSTRAINTS, deviceId: { exact: real.deviceId } },
+    })).getAudioTracks()[0];
+    stream.removeTrack(a);
+    a.stop();
+    stream.addTrack(fresh);
+    toast(`Using your microphone "${real.label}" instead of Stereo Mix.`, 5000);
+  } catch (e) {
+    console.warn("Couldn't switch away from Stereo Mix", e);
+  }
+  return stream;
 }
 
 // A microphone can go silent without the page being told: another app (Zoom,
@@ -296,7 +326,7 @@ function watchMic(track) {
 async function restartMic() {
   let fresh;
   try {
-    fresh = (await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS })).getAudioTracks()[0];
+    fresh = (await avoidLoopbackMic(await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS }))).getAudioTracks()[0];
   } catch {}
   if (!fresh || !S.localStream) {
     toast("Couldn't reconnect your microphone. Allow it in your browser's site settings and reload.", 7000);
