@@ -238,6 +238,8 @@ function bindLobby() {
 /* Media (camera + microphone)                                        */
 /* ------------------------------------------------------------------ */
 
+const MIC_CONSTRAINTS = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+
 async function startMedia() {
   if (S.localStream) return;
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -245,7 +247,7 @@ async function startMedia() {
     return;
   }
   const video = { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: "user", frameRate: { ideal: 24 } };
-  const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  const audio = MIC_CONSTRAINTS;
   let stream = null;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video, audio });
@@ -271,7 +273,76 @@ async function startMedia() {
     $("meVideo").srcObject = stream;
     $("meVideo").play().catch(() => {});
   }
+  watchMic(stream?.getAudioTracks()[0]);
 }
+
+// A microphone can go silent without the page being told: another app (Zoom,
+// Teams) takes it, a headset is unplugged, or the system mutes it. The call would
+// keep sending a dead track, so the other player hears nothing. Say so and recover.
+function watchMic(track) {
+  if (!track) return;
+  const current = () => S.localStream?.getAudioTracks()[0] === track;
+  if (track.muted) toast("Your microphone isn't sending any sound. Check that no other app is using it.", 6000);
+  track.addEventListener("mute", () => {
+    if (current()) toast("Your microphone stopped sending sound. Check that no other app is using it.", 6000);
+  });
+  track.addEventListener("ended", () => {
+    if (!current()) return;
+    toast("Your microphone was disconnected. Reconnecting it…", 4000);
+    restartMic();
+  });
+}
+
+async function restartMic() {
+  let fresh;
+  try {
+    fresh = (await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS })).getAudioTracks()[0];
+  } catch {}
+  if (!fresh || !S.localStream) {
+    toast("Couldn't reconnect your microphone. Allow it in your browser's site settings and reload.", 7000);
+    S.hasMic = S.micOn = false;
+    applyLocalMedia();
+    return;
+  }
+  fresh.enabled = S.micOn;
+  for (const st of [S.localStream, S.outStream]) {
+    if (!st) continue;
+    st.getAudioTracks().forEach((t) => st.removeTrack(t));
+    st.addTrack(fresh);
+  }
+  // Swap the new mic into the live call without restarting it.
+  const sender = S.call?.peerConnection?.getSenders().find((x) => x.track?.kind === "audio");
+  if (sender) await sender.replaceTrack(fresh).catch((e) => console.warn("replaceTrack failed", e));
+  watchMic(fresh);
+  toast("Microphone reconnected.");
+}
+
+// During a call, type chessLiveDebug() in the browser console (F12) to see whether
+// your microphone makes sound and whether that sound is reaching the other player.
+window.chessLiveDebug = async function () {
+  const mic = S.localStream?.getAudioTracks()[0];
+  console.log("Microphone:", mic
+    ? { device: mic.label, enabled: mic.enabled, muted: mic.muted, state: mic.readyState }
+    : "none, so the call carries silence");
+  console.log("Mic button on:", S.micOn, "| Opponent's mic on:", S.oppMicOn);
+  const pc = S.call?.peerConnection;
+  if (!pc) return console.log("No video/voice call is connected yet.");
+  const sent = pc.getSenders().find((x) => x.track?.kind === "audio")?.track;
+  console.log("Audio track in the call:", sent
+    ? { device: sent.label, sameAsMic: sent === mic, enabled: sent.enabled, muted: sent.muted, state: sent.readyState }
+    : "none");
+  console.log("Connection:", pc.connectionState, "| ICE:", pc.iceConnectionState);
+  const rows = {};
+  (await pc.getStats()).forEach((r) => {
+    if (r.kind !== "audio") return;
+    if (r.type === "media-source") rows["Your mic level (0 to 1)"] = r.audioLevel;
+    if (r.type === "outbound-rtp") { rows["Audio packets sent"] = r.packetsSent; rows["Audio bytes sent"] = r.bytesSent; }
+    if (r.type === "remote-inbound-rtp") rows["Packets the opponent lost"] = r.packetsLost;
+    if (r.type === "inbound-rtp") { rows["Audio packets received"] = r.packetsReceived; rows["Opponent's level (0 to 1)"] = r.audioLevel; }
+  });
+  console.table(rows);
+  console.log("Run it again while talking. 'Audio packets sent' should go up and 'Your mic level' should be above 0.");
+};
 
 // Every call carries one audio and one video track so the other side can always
 // send theirs back. If we have no camera or mic, a silent / blank stand-in is used.
