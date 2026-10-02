@@ -32,8 +32,6 @@ Open http://localhost:3000. To try a two-player game on one machine, open the in
 
 ## Put it online
 
-**Step-by-step free setup (GitHub + Cloudflare + Render): see `DEPLOY.md`.**
-
 Camera and microphone only work on `https://` sites (or localhost), so host it somewhere that gives you HTTPS. Any Node host works: Render, Railway, Fly.io, a VPS behind Nginx/Caddy, Azure App Service.
 
 - Start command: `npm start`
@@ -44,14 +42,7 @@ Camera and microphone only work on `https://` sites (or localhost), so host it s
 
 Video, voice and moves go directly between the two players. That works on most home and office Wi-Fi, but roughly 10–20% of connections (some mobile networks, corporate firewalls) block direct links. A TURN server relays traffic for those players. Without it, those games will fail to connect.
 
-Recommended: Cloudflare TURN (free allowance of 1,000 GB). Set these two environment variables and the server fetches short-lived logins from Cloudflare by itself:
-
-```
-CF_TURN_KEY_ID=...
-CF_TURN_API_TOKEN=...
-```
-
-Any other TURN provider with a fixed login (Metered, Twilio, Xirsys, your own coturn) works too:
+Get TURN credentials from a provider such as Metered, Twilio, Xirsys or Cloudflare, or run your own coturn, then set:
 
 ```
 TURN_URL=turn:your.turn.host:3478,turns:your.turn.host:5349
@@ -59,11 +50,9 @@ TURN_USERNAME=...
 TURN_CREDENTIAL=...
 ```
 
-After deploying, open `/api/status` on your site to check the relay is working.
-
 ### Static hosting (quick demo only)
 
-The `docs` folder also runs on its own on any static host. On GitHub Pages: repository **Settings → Pages → Deploy from a branch → `main` / `/docs`**. In that mode it uses the free public PeerJS service to connect players, which has no uptime guarantee. Use the Node server for a real launch.
+The `docs` folder also runs on its own on any static host. For GitHub Pages, go to Settings → Pages and serve the `main` branch from the `/docs` folder. In that mode it uses the free public PeerJS service to connect players, which has no uptime guarantee. Use the Node server for a real launch.
 
 ## Changing the code
 
@@ -76,7 +65,6 @@ npm run build
 ## Project layout
 
 ```
-render.yaml          Render setup (free plan)
 server.js            web server + signaling service (helps the two browsers find each other)
 docs/index.html    page structure
 docs/css/style.css look and layout
@@ -99,6 +87,7 @@ To rename the product, change `APP_NAME` at the top of `docs/js/app.js`, plus th
 
 ## Good next steps before launch
 
+- Add a TURN service (above). This matters more than anything else on the list.
 - Optional chess clocks (e.g. 10+0, 5+3).
 - Analytics and an error tracker so you can see failed connections.
 - A short privacy note: video and audio go player-to-player and are not recorded or stored by the server.

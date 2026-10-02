@@ -352,8 +352,7 @@ async function peerOptions() {
   if (peerOptsCache) return peerOptsCache;
   let ice = DEFAULT_ICE;
   let ownServer = false;
-  const staticHost = /\.github\.io$/i.test(location.hostname);
-  if (!staticHost) try {
+  try {
     const r = await fetch("api/config", { cache: "no-store" });
     if (r.ok) {
       const cfg = await r.json();
@@ -488,13 +487,7 @@ function scheduleReconnect() {
   S.reconnectTimer = setTimeout(() => {
     S.reconnectTimer = null;
     if (!S.connected && !S.leaving) {
-      if (!S.peer || S.peer.destroyed) {
-        // The connection to the game server was lost for good; start a fresh one.
-        try { S.peer?.destroy(); } catch {}
-        openGuestPeer();
-      } else {
-        connectToHost();
-      }
+      connectToHost();
       scheduleReconnect();
     }
   }, 3000);
