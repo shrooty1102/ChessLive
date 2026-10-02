@@ -217,13 +217,15 @@ button { cursor: pointer; }
 .table {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Moves on the left, board in the middle, video (opponent above you) on the right */
+  --video-col: clamp(180px, calc((100dvh - var(--topbar-h) - 160px) / 2), 280px);
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) var(--video-col);
+  grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas:
-    "board opp"
-    "board ledger"
-    "board me";
-  gap: 12px 28px;
+    "ledger board opp"
+    "ledger board me"
+    "ledger board .";
+  gap: 12px 24px;
   padding: 16px 24px 20px;
   max-width: 1440px;
   width: 100%;
@@ -241,6 +243,11 @@ button { cursor: pointer; }
 .player-opp { grid-area: opp; }
 .player-me { grid-area: me; }
 .ledger { grid-area: ledger; }
+.player-me .video-tile { order: -1; } /* video above the name, matching the opponent card */
+@media (min-width: 981px) {
+  /* Fill the full height without letting a long move list stretch the rows */
+  .ledger, .board-area { contain: size; }
+}
 
 /* ---------- Player cards ---------- */
 .player {
@@ -267,7 +274,8 @@ button { cursor: pointer; }
 
 .video-tile {
   position: relative;
-  height: clamp(96px, 16dvh, 220px);
+  aspect-ratio: 1 / 1;
+  width: 100%;
   border-radius: var(--r-sm);
   overflow: hidden;
   background: #0f2420;
@@ -343,7 +351,7 @@ button { cursor: pointer; }
 .moves {
   list-style: none; margin: 0; padding: 0 8px 8px;
   flex: 1; min-height: 56px;
-  overflow-y: auto;
+  overflow-y: scroll;
   font-variant-numeric: tabular-nums;
   scrollbar-width: thin;
   scrollbar-color: var(--baize-4) transparent;
@@ -513,7 +521,9 @@ button { cursor: pointer; }
   .board-area .board-frame { width: min(100%, 640px); }
   .player { flex-direction: row; align-items: center; padding: 6px; }
   .player-me { flex-direction: row-reverse; }
-  .player .video-tile { width: 132px; height: 99px; flex: none; }
+  .player .video-tile { width: 104px; flex: none; }
+  .player-me .video-tile { order: 0; }
+  .moves { overflow-y: auto; }
   .player .player-bar { flex: 1; min-width: 0; flex-wrap: wrap; }
   .player .captures { margin-left: 0; width: 100%; }
   .player-me .player-bar { padding-left: 4px; }
@@ -536,7 +546,7 @@ button { cursor: pointer; }
   .room-code { letter-spacing: .1em; font-size: 14px; }
   .icon-btn { width: 34px; height: 34px; }
   .topbar .btn-sm { padding: 0 9px; min-height: 34px; }
-  .player .video-tile { width: 104px; height: 78px; }
+  .player .video-tile { width: 84px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -544,9 +554,8 @@ button { cursor: pointer; }
   .dialog[open] { animation: none; }
 }
 
-/* Short laptop screens: shrink the video tiles so nothing scrolls */
+/* Short laptop screens: tighten spacing so nothing scrolls */
 @media (min-width: 981px) and (max-height: 820px) {
-  .video-tile { height: clamp(84px, 12dvh, 120px); }
   .status { padding: 10px 16px; min-height: 40px; }
   .actions { padding: 10px; }
 }
