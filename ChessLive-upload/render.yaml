@@ -1,0 +1,21 @@
+# Render setup for Chess Live (free plan).
+# Render reads this file when you create a "Blueprint" from your GitHub repo.
+services:
+  - type: web
+    name: chess-live
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Cloudflare TURN (connection relay). Render will ask you for these two
+      # values when you create the Blueprint. Paste them from Cloudflare.
+      - key: CF_TURN_KEY_ID
+        sync: false
+      - key: CF_TURN_API_TOKEN
+        sync: false

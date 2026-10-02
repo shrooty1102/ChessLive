@@ -1,0 +1,21 @@
+{
+  "name": "chess-live",
+  "version": "1.0.0",
+  "description": "Two-player online chess with live video and voice",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "build": "esbuild docs/js/app.js --bundle --format=iife --target=es2020 --minify --outfile=docs/js/app.bundle.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "peer": "^1.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
