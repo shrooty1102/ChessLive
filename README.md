@@ -62,6 +62,8 @@ The browser loads `docs/js/app.bundle.js`, which is built from the files in `doc
 npm run build
 ```
 
+Then raise the `?v=` number on the `style.css` and `app.bundle.js` links in `docs/index.html`, so browsers fetch the new files instead of cached ones.
+
 ## Project layout
 
 ```
